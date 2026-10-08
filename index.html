@@ -180,13 +180,13 @@
             background-color: #f8fafc;
             color: var(--text-sub);
             font-weight: 600;
-            padding: 10px;
+            padding: 10px 8px;
             border-bottom: 1px solid var(--border-color);
             white-space: nowrap;
         }
 
         td {
-            padding: 10px;
+            padding: 8px;
             border-bottom: 1px solid var(--border-color);
             vertical-align: middle;
         }
@@ -195,27 +195,23 @@
             border-bottom: none;
         }
 
-        .badge {
-            display: inline-block;
-            padding: 3px 6px;
+        /* 표 내부 선택 셀렉트 박스 스타일 */
+        .table-select {
+            padding: 4px 6px;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
-            font-size: 0.72rem;
+            font-size: 0.78rem;
             font-weight: 600;
-            white-space: nowrap;
+            background-color: #f8fafc;
+            color: var(--text-main);
+            outline: none;
+            cursor: pointer;
         }
 
-        /* 결제 수단 태그 색상 */
-        .badge-pay {
-            background-color: #f1f5f9;
-            color: #475569;
-            border: 1px solid #cbd5e1;
+        .table-select:focus {
+            border-color: var(--primary-color);
+            background-color: #fff;
         }
-
-        /* 카테고리 태그 색상 */
-        .badge-식비 { background-color: #ffedd5; color: #c2410c; }
-        .badge-교통비 { background-color: #e0f2fe; color: #0369a1; }
-        .badge-기념품 { background-color: #fce7f3; color: #be185d; }
-        .badge-기타 { background-color: #f3e8ff; color: #6b21a8; }
 
         .btn-delete {
             background: none;
@@ -319,6 +315,9 @@
         let expenses = JSON.parse(localStorage.getItem('tripExpenses')) || [];
         let chartInstance = null;
 
+        const categories = ['식비', '교통비', '기념품', '기타'];
+        const paymentMethods = ['신용카드', '체크카드', '계좌이체', '현금'];
+
         function saveAndRender() {
             localStorage.setItem('tripExpenses', JSON.stringify(expenses));
             render();
@@ -356,20 +355,39 @@
                 expenses.forEach((item, index) => {
                     total += Number(item.amount);
                     
-                    // 기존 데이터에 카테고리가 없는 경우 '기타'로 처리
                     const cat = item.category || '기타';
+                    const pay = item.paymentMethod || '신용카드';
+
                     if (categoryTotals[cat] !== undefined) {
                         categoryTotals[cat] += Number(item.amount);
                     } else {
                         categoryTotals['기타'] += Number(item.amount);
                     }
 
+                    // 카테고리 옵션 생성
+                    const categoryOptions = categories.map(c => 
+                        `<option value="${c}" ${c === cat ? 'selected' : ''}>${c}</option>`
+                    ).join('');
+
+                    // 결제수단 옵션 생성
+                    const paymentOptions = paymentMethods.map(p => 
+                        `<option value="${p}" ${p === pay ? 'selected' : ''}>${p}</option>`
+                    ).join('');
+
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td style="white-space: nowrap;">${item.date.slice(5)}</td>
                         <td><strong>${escapeHtml(item.merchant)}</strong></td>
-                        <td><span class="badge badge-${cat}">${cat}</span></td>
-                        <td><span class="badge badge-pay">${item.paymentMethod || '미지정'}</span></td>
+                        <td>
+                            <select class="table-select" onchange="updateItemField(${index}, 'category', this.value)">
+                                ${categoryOptions}
+                            </select>
+                        </td>
+                        <td>
+                            <select class="table-select" onchange="updateItemField(${index}, 'paymentMethod', this.value)">
+                                ${paymentOptions}
+                            </select>
+                        </td>
                         <td style="text-align: right; font-weight: 600;">${formatCurrency(item.amount)}</td>
                         <td style="text-align: center;"><button class="btn-delete" onclick="deleteExpense(${index})">✕</button></td>
                     `;
@@ -379,6 +397,12 @@
 
             totalEl.textContent = formatCurrency(total);
             updateChart(categoryTotals);
+        }
+
+        // 표 내에서 항목 수정 시 즉시 업데이트 함수
+        function updateItemField(index, field, value) {
+            expenses[index][field] = value;
+            saveAndRender();
         }
 
         // 지출 성격(카테고리) 원형 차트 업데이트
