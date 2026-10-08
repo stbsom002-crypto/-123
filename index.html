@@ -102,4 +102,335 @@
             width: 100%;
             padding: 10px 12px;
             border: 1px solid var(--border-color);
-            border
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            background-color: #fff;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary-color);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+
+        /* 차트 영역 */
+        .chart-card {
+            background: var(--card-bg);
+            padding: 18px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .chart-card h3 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--text-main);
+            text-align: center;
+        }
+
+        .chart-container {
+            position: relative;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+
+        /* 표 영역 */
+        .table-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .table-card h3 {
+            font-size: 1rem;
+            padding: 16px 16px 10px 16px;
+            color: var(--text-main);
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: var(--text-sub);
+            font-weight: 600;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 6px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-신용카드 { background-color: #e0f2fe; color: #0369a1; }
+        .badge-체크카드 { background-color: #dcfce7; color: #15803d; }
+        .badge-계좌이체 { background-color: #fef3c7; color: #b45309; }
+        .badge-현금 { background-color: #f3e8ff; color: #7e22ce; }
+
+        .btn-delete {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            font-weight: bold;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-sub);
+            padding: 24px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>✈️ 여행 경비 관리</h1>
+    </header>
+
+    <!-- 누적 총액 -->
+    <div class="summary-card">
+        <h2>총 누적 지출 금액</h2>
+        <div class="total-amount" id="totalAmount">0 원</div>
+    </div>
+
+    <!-- 입력 폼 -->
+    <form class="form-card" id="expenseForm">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="date">날짜</label>
+                <input type="date" id="date" required>
+            </div>
+            <div class="form-group">
+                <label for="paymentMethod">결제 수단</label>
+                <select id="paymentMethod" required>
+                    <option value="신용카드">신용카드</option>
+                    <option value="체크카드">체크카드</option>
+                    <option value="계좌이체">계좌이체</option>
+                    <option value="현금">현금</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label for="merchant">업체명 (내역)</label>
+                <input type="text" id="merchant" placeholder="예: 스타벅스, 호텔" required>
+            </div>
+            <div class="form-group full-width">
+                <label for="amount">금액 (원)</label>
+                <input type="number" id="amount" placeholder="0" required min="0">
+            </div>
+        </div>
+        <button type="submit" class="btn-submit">지출 내역 추가</button>
+    </form>
+
+    <!-- 결제 수단별 원형 차트 -->
+    <div class="chart-card">
+        <h3>📊 결제 수단별 지출 비율</h3>
+        <div class="chart-container">
+            <canvas id="paymentChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 순차적 지출 내역 표 -->
+    <div class="table-card">
+        <h3>📋 상세 지출 내역</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>날짜</th>
+                        <th>업체명</th>
+                        <th>수단</th>
+                        <th style="text-align: right;">금액</th>
+                        <th style="text-align: center;">삭제</th>
+                    </tr>
+                </thead>
+                <tbody id="expenseTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 오늘 날짜 설정
+        document.getElementById('date').valueAsDate = new Date();
+
+        let expenses = JSON.parse(localStorage.getItem('tripExpenses')) || [];
+        let chartInstance = null;
+
+        function saveAndRender() {
+            localStorage.setItem('tripExpenses', JSON.stringify(expenses));
+            render();
+        }
+
+        function formatCurrency(num) {
+            return new Intl.NumberFormat('ko-KR').format(num) + '원';
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function render() {
+            const tableBody = document.getElementById('expenseTableBody');
+            const totalEl = document.getElementById('totalAmount');
+            
+            tableBody.innerHTML = '';
+            let total = 0;
+
+            // 결제 수단별 집계용 객체
+            const paymentTotals = {
+                '신용카드': 0,
+                '체크카드': 0,
+                '계좌이체': 0,
+                '현금': 0
+            };
+
+            if (expenses.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="empty-state">등록된 지출 내역이 없습니다.</td></tr>';
+            } else {
+                // 입력한 순서(날짜 내림차순 정렬)로 노출
+                expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                expenses.forEach((item, index) => {
+                    total += Number(item.amount);
+                    if (paymentTotals[item.paymentMethod] !== undefined) {
+                        paymentTotals[item.paymentMethod] += Number(item.amount);
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="white-space: nowrap;">${item.date.slice(5)}</td>
+                        <td><strong>${escapeHtml(item.merchant)}</strong></td>
+                        <td><span class="badge badge-${item.paymentMethod}">${item.paymentMethod}</span></td>
+                        <td style="text-align: right; font-weight: 600;">${formatCurrency(item.amount)}</td>
+                        <td style="text-align: center;"><button class="btn-delete" onclick="deleteExpense(${index})">✕</button></td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            }
+
+            totalEl.textContent = formatCurrency(total);
+            updateChart(paymentTotals);
+        }
+
+        // 원형 차트 업데이트 함수
+        function updateChart(paymentTotals) {
+            const ctx = document.getElementById('paymentChart').getContext('2d');
+            
+            const labels = Object.keys(paymentTotals);
+            const data = Object.values(paymentTotals);
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#38bdf8', // 신용카드 (하늘)
+                            '#4ade80', // 체크카드 (초록)
+                            '#facc15', // 계좌이체 (노랑)
+                            '#c084fc'  // 현금 (보라)
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 12 },
+                                padding: 12
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 지출 추가 처리
+        document.getElementById('expenseForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const date = document.getElementById('date').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const merchant = document.getElementById('merchant').value.trim();
+            const amount = document.getElementById('amount').value;
+
+            if (!date || !merchant || !amount) return;
+
+            expenses.push({ 
+                date, 
+                paymentMethod, 
+                merchant, 
+                amount: Number(amount) 
+            });
+
+            saveAndRender();
+
+            // 입력란 초기화
+            document.getElementById('merchant').value = '';
+            document.getElementById('amount').value = '';
+        });
+
+        // 지출 삭제 처리
+        function deleteExpense(index) {
+            expenses.splice(index, 1);
+            saveAndRender();
+        }
+
+        // 초기 실행
+        render();
+    </script>
+</body>
+</html>
